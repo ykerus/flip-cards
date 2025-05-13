@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flip_cards"
+
+dependencies = [
+]
+requires-python = "==3.12.*"
+authors = [
+    {name = "Yke"},
+]
+description = "Flippin cards"
+readme = "README.md"
+dynamic = ["version"]
+
+[tool.ruff]
+line-length = 100
+lint.select = ["I"]
+src = ["src"]
+
+[tool.black]
+line-length = 100
+
+[dependency-groups]
+dev = [
+    "isort>=6.0.0",
+    "ipykernel==6.29.3",
+    "pytest==8.1.1",
+    "pre-commit==3.6.2",
+    "ruff>=0.11.8",
+]

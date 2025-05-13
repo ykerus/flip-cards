@@ -1,2 +1,3 @@
-# flip-cards
-Streamlit app for practicing things
+# Flip cards Streamlit app
+
+For practicing things 👩‍🏫
