@@ -84,6 +84,16 @@ def prepare_question_answer_pairs(*args, **kwargs) -> Tuple[List[QuestionObjectT
             "info": "Grutto grutto",
             "tags": ["steltloper"],
         },
+        {
+            "question": "Welke vogel zingt als de Ijsvogel?",
+            "info": "Twiit twiit",
+            "tags": ["blauw"],
+        },
+        {
+            "question": "Welke vogel zingt als de Tapuit?",
+            "info": "Tju tju tju",
+            "tags": [],
+        },
     ]
     correct_answers: List[str] = [
         "Merel",
@@ -94,6 +104,8 @@ def prepare_question_answer_pairs(*args, **kwargs) -> Tuple[List[QuestionObjectT
         "Tortelduif",
         "Scholekster",
         "Grutto",
+        "Ijsvogel",
+        "Tapuit",
     ]
 
     assert len(question_objects) == len(correct_answers)
@@ -102,7 +114,7 @@ def prepare_question_answer_pairs(*args, **kwargs) -> Tuple[List[QuestionObjectT
 
 def welcome_message():
     st.subheader("👈 Start de overhoring")
-    st.snow()
+    # st.snow()
     st.stop()
 
 
@@ -120,84 +132,217 @@ def initialize_session_state(
     st.session_state["clear_answer_field"] = False
     st.session_state["next_question"] = False
     st.session_state["overhoring_started"] = False
-    st.session_state["config"] = Config().dict()
+    st.session_state["_config_default"] = Config().dict()  # Before starting overhoring
+    st.session_state["_config"] = Config().dict()  # Before starting overhoring
+    st.session_state["config"] = Config().dict()  # Actual config used in overhoring
     st.session_state["initialized"] = True
+
+
+def _set_config(config_key: str, widget_key: str):
+    st.session_state["_config"][config_key] = st.session_state[widget_key]
+
+
+def _set_config_default(config_key: str):
+    try:
+        st.session_state["_config_default"][config_key] = st.session_state["_config"][
+            config_key
+        ].copy()
+    except AttributeError:
+        st.session_state["_config_default"][config_key] = st.session_state["_config"][config_key]
+
+
+def _sync_configs_and_defaults(key: str):
+    set_config_default_keys = [
+        "selected_questions",
+        "included_tags",
+        "excluded_tags",
+        "n_random_questions",
+        "question_start_index",
+        "question_end_index",
+    ]
+    set_config_default_keys.remove(key)
+    for k in set_config_default_keys:
+        _set_config_default(k)
+
+    _set_config(key, key + "_widget")
+
+
+def _multiselect_selected_questions():
+    possible_indices = _get_possible_indices_from_selected_tags("_config")
+    possible_questions = [st.session_state["correct_answers"][i] for i in possible_indices]
+    st.multiselect(
+        "Meegenomen vragen (mag leeg zijn)",
+        possible_questions,
+        default=st.session_state["_config_default"]["selected_questions"],
+        key="selected_questions_widget",
+        on_change=lambda: _sync_configs_and_defaults("selected_questions"),
+    )
+
+
+def _multiselect_included_tags():
+    possible_indices = _get_possible_indices_from_excluded_tags("_config")
+    possible_question_objects = [st.session_state["question_objects"][i] for i in possible_indices]
+    possible_tags = {tag for tags in [q["tags"] for q in possible_question_objects] for tag in tags}
+    st.multiselect(
+        "Meegenomen tags (mag leeg zijn)",
+        list(possible_tags),
+        default=st.session_state["_config_default"]["included_tags"],
+        key="included_tags_widget",
+        on_change=lambda: _sync_configs_and_defaults("included_tags"),
+    )
+
+
+def _multiselect_excluded_tags():
+    if st.session_state["_config"]["selected_questions"]:
+        return
+
+    possible_tags = [
+        tag
+        for tag in st.session_state["all_tags"]
+        if tag not in st.session_state["_config"]["included_tags"]
+    ]
+
+    st.multiselect(
+        "Uitgesloten tags (mag leeg zijn)",
+        possible_tags,
+        default=st.session_state["_config_default"]["excluded_tags"],
+        key="excluded_tags_widget",
+        on_change=lambda: _sync_configs_and_defaults("excluded_tags"),
+    )
+
+
+def _select_slider_n_random_questions():
+    possible_question_indices = _get_possible_question_indices("_config")
+    st.select_slider(
+        "Aantal vragen",
+        range(1, len(possible_question_indices) + 1),
+        key="n_random_questions_widget",
+        value=min(
+            len(possible_question_indices),
+            st.session_state["_config_default"]["n_random_questions"],
+        ),
+        on_change=lambda: _set_config("n_random_questions", "n_random_questions_widget"),
+    )
+    _set_config("n_random_questions", "n_random_questions_widget")
+
+
+def _select_slider_from_to_questions():
+    def _set_config_from_to():
+        start_index = st.session_state["questions_from_to_widget"][0]
+        end_index = st.session_state["questions_from_to_widget"][1] + 1
+        st.session_state["_config"]["question_start_index"] = start_index
+        st.session_state["_config"]["question_end_index"] = end_index
+
+    possible_question_indices = _get_possible_question_indices("_config")
+
+    def _format_func(i):
+        indx = possible_question_indices[i]
+        return f"{st.session_state['correct_answers'][indx]}"
+
+    st.select_slider(
+        "Selectie van-tot",
+        range(len(possible_question_indices)),
+        value=(
+            min(
+                st.session_state["_config_default"]["question_start_index"],
+                len(possible_question_indices) - 2,
+            ),
+            min(
+                st.session_state["_config_default"]["question_end_index"],
+                len(possible_question_indices) - 1,
+            ),
+        ),
+        format_func=lambda x: _format_func(x),
+        on_change=_set_config_from_to,
+        key="questions_from_to_widget",
+    )
+    _set_config_from_to()
 
 
 def config_form():
     # To be customized per use case
-    with st.sidebar.form("config_form"):
+
+    with st.sidebar.container(border=True):
         st.subheader("**Configuratie**")
 
         st.write("**Algemene instellingen**")
 
-        st.session_state["config"]["answer_suggestions"] = st.checkbox(
+        st.checkbox(
             "Antwoord suggesties",
-            value=st.session_state["config"]["answer_suggestions"],
+            value=st.session_state["_config_default"]["answer_suggestions"],
+            key="answer_suggestions_widget",
+            on_change=lambda: _set_config("answer_suggestions", "answer_suggestions_widget"),
         )
-        st.session_state["config"]["infinite_practice"] = st.checkbox(
-            "Eindeloos oefenen", value=st.session_state["config"]["infinite_practice"]
-        )
-
-        st.session_state["config"]["selected_questions"] = st.multiselect(
-            "Meegenomen vragen (mag leeg zijn)",
-            list(set(st.session_state["correct_answers"])),
-            default=[],
-        )
-        st.session_state["config"]["included_tags"] = st.multiselect(
-            "Meegenomen tags (mag leeg zijn)",
-            ["*"] + list(st.session_state["all_tags"]),
-            default=[],
-        )
-        st.session_state["config"]["excluded_tags"] = st.multiselect(
-            "Uitgesloten tags (mag leeg zijn)",
-            ["*"] + list(st.session_state["all_tags"]),
-            default=[],
+        st.checkbox(
+            "Eindeloos oefenen",
+            value=st.session_state["_config_default"]["infinite_practice"],
+            key="infinite_practice_widget",
+            on_change=lambda: _set_config("infinite_practice", "infinite_practice_widget"),
         )
 
-        overhoring_type = st.selectbox(
-            "Overhoring type",
-            ["Vragen selectie", "Willekeurige vragen"],
-            index=int(st.session_state["config"]["random_selection"]),
-        )
-        st.session_state["config"]["overhoring_type"] = overhoring_type
-        st.session_state["config"]["random_selection"] = overhoring_type == "Willekeurige vragen"
+        _multiselect_selected_questions()
 
-        with st.expander("**Vragen selectie**"):
-            start_index, end_index = st.select_slider(
-                "Van-tot vraag",
-                range(1, st.session_state["total_questions"] + 1),
-                value=(
-                    st.session_state["config"]["question_start_index"] + 1,
-                    st.session_state["config"]["question_end_index"],
-                ),
+        if not st.session_state["_config"]["selected_questions"]:
+            _multiselect_included_tags()
+            _multiselect_excluded_tags()
+
+        n_preselected_questions = len(_get_possible_question_indices("_config"))
+        if n_preselected_questions == 0:
+            st.write(
+                "Oeps, er zijn niet genoeg vragen voor deze filters! Probeer opnieuw met andere filters."
             )
-            st.session_state["config"]["question_start_index"] = start_index - 1  # inclusice
-            st.session_state["config"]["question_end_index"] = end_index  # exclusive
+            st.stop()
 
-        with st.expander("**Willekeurige vragen**"):
-            st.session_state["config"]["n_random_questions"] = st.select_slider(
-                "Aantal vragen",
-                range(1, st.session_state["total_questions"] + 1),
-                value=st.session_state["config"]["n_random_questions"],
+        elif n_preselected_questions == 1:
+            n_questions_selected = 1
+
+        elif n_preselected_questions > 1:
+            st.container(border=True).write(
+                f"🐣 &nbsp; {n_preselected_questions} van {st.session_state['total_questions']} "
+                + "vragen in voorselectie"
             )
 
-        start_overhoring_button = st.form_submit_button("Start overhoring")
+            st.checkbox(
+                "Willekeurige selectie",
+                value=st.session_state["_config_default"]["random_selection"],
+                key="random_selection_widget",
+                on_change=lambda: _set_config("random_selection", "random_selection_widget"),
+            )
+
+            if st.session_state["_config"]["random_selection"]:
+                _select_slider_n_random_questions()
+            else:
+                _select_slider_from_to_questions()
+
+            n_questions_selected = _get_n_questions_selected("_config")
+
+        st.container(border=True).write(
+            f"🐥 &nbsp; {n_questions_selected} van {st.session_state['total_questions']} "
+            + "vragen in eindselectie"
+        )
+
+        start_overhoring_button = st.button("Start overhoring")
 
         if start_overhoring_button:
             st.session_state["overhoring_started"] = True
             st.session_state["initialize_queue"] = True
 
-            if st.session_state["config"]["selected_questions"]:
-                st.session_state["config"]["question_start_index"] = 0
-                st.session_state["config"]["question_end_index"] = len(
-                    st.session_state["config"]["selected_questions"]
-                )
-                st.session_state["config"]["n_random_questions"] = len(
-                    st.session_state["config"]["selected_questions"]
-                )
+            st.session_state["config"] = st.session_state["_config"].copy()
+
+            if n_questions_selected == 1:
+                st.session_state["config"]["random_selection"] = True
+                st.session_state["config"]["n_random_questions"] = 1
 
             st.rerun()
+
+
+def _get_n_questions_selected(config: str = "config") -> int:
+    return (
+        st.session_state[config]["n_random_questions"]
+        if st.session_state[config]["random_selection"]
+        else st.session_state[config]["question_end_index"]
+        - st.session_state[config]["question_start_index"]
+    )
 
 
 def reset_session_state():
@@ -205,63 +350,61 @@ def reset_session_state():
     st.session_state["next_question"] = False
     st.session_state["answer_checked"] = False
     st.session_state["answer_submitted"] = False
-    st.session_state["n_questions"] = (
-        st.session_state["config"]["n_random_questions"]
-        if st.session_state["config"]["random_selection"]
-        else st.session_state["config"]["question_end_index"]
-        - st.session_state["config"]["question_start_index"]
-    )
+    st.session_state["n_questions"] = _get_n_questions_selected()
     infinite_practice = st.session_state["config"]["infinite_practice"]
     st.session_state["question_indices_seen"] = [] if infinite_practice else set()
 
 
-def _get_possible_indices_from_selected_questions():
+def _get_possible_indices_from_selected_questions(config: str = "config"):
     possible_from_selected_questions = []
     for i, question_object in enumerate(st.session_state["question_objects"]):
         correct_answer = st.session_state["correct_answers"][i]
 
-        if st.session_state["config"]["selected_questions"]:
-            if correct_answer in st.session_state["config"]["selected_questions"]:
+        if st.session_state[config]["selected_questions"]:
+            if correct_answer in st.session_state[config]["selected_questions"]:
                 possible_from_selected_questions.append(i)
         else:
             possible_from_selected_questions.append(i)
     return possible_from_selected_questions
 
 
-def _get_possible_indices_from_selected_tags():
+def _get_possible_indices_from_included_tags(config: str = "config") -> List[int]:
     possible_from_included_tags = []
-    possible_from_excluded_tags = []
     for i, question_object in enumerate(st.session_state["question_objects"]):
-        if st.session_state["config"]["included_tags"]:
-            if "*" in st.session_state["config"]["included_tags"]:
-                if question_object["tags"]:
+        if st.session_state[config]["included_tags"]:
+            for tag in question_object["tags"]:
+                if tag in st.session_state[config]["included_tags"]:
                     possible_from_included_tags.append(i)
-            else:
-                for tag in question_object["tags"]:
-                    if tag in st.session_state["config"]["included_tags"]:
-                        possible_from_included_tags.append(i)
         else:
             possible_from_included_tags.append(i)
+    return possible_from_included_tags
 
-        if st.session_state["config"]["excluded_tags"]:
-            if "*" in st.session_state["config"]["excluded_tags"]:
-                if not question_object["tags"]:
-                    possible_from_excluded_tags.append(i)
-            else:
-                possible_from_excluded_tags.append(i)
-                for tag in question_object["tags"]:
-                    if tag in st.session_state["config"]["excluded_tags"]:
-                        possible_from_excluded_tags.pop()
-                        break
+
+def _get_possible_indices_from_excluded_tags(config: str = "config") -> List[int]:
+    possible_from_excluded_tags = []
+    for i, question_object in enumerate(st.session_state["question_objects"]):
+        if st.session_state[config]["excluded_tags"]:
+            possible_from_excluded_tags.append(i)
+            for tag in question_object["tags"]:
+                if tag in st.session_state[config]["excluded_tags"]:
+                    possible_from_excluded_tags.pop()
+                    break
         else:
             possible_from_excluded_tags.append(i)
+    return possible_from_excluded_tags
+
+
+def _get_possible_indices_from_selected_tags(config: str = "config"):
+    possible_from_included_tags = _get_possible_indices_from_included_tags(config)
+    possible_from_excluded_tags = _get_possible_indices_from_excluded_tags(config)
     possible_indices = set(possible_from_included_tags).intersection(possible_from_excluded_tags)
+
     return sorted(list(possible_indices))
 
 
-def _get_possible_question_indices():
-    indices_from_selected_questions = _get_possible_indices_from_selected_questions()
-    indices_from_selected_tags = _get_possible_indices_from_selected_tags()
+def _get_possible_question_indices(config: str = "config"):
+    indices_from_selected_questions = _get_possible_indices_from_selected_questions(config)
+    indices_from_selected_tags = _get_possible_indices_from_selected_tags(config)
     possible_question_indices = list(
         set(indices_from_selected_questions).intersection(indices_from_selected_tags)
     )
@@ -284,6 +427,8 @@ def initialize_queue():
         end_index = st.session_state["config"]["question_end_index"]
         if end_index > len(possible_question_indices):
             st.write(error_msg)
+            breakpoint()
+
             st.stop()
 
         queue = possible_question_indices[start_index:end_index]

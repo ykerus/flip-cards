@@ -44,6 +44,7 @@ if st.session_state["answer_submitted"]:
     if not st.session_state["answer_checked"]:
         app_utils.check_answer()
         app_utils.update_queue()
+        st.rerun()
     app_utils.show_feedback_message()
     app_utils.show_tags()
     app_utils.present_question_information()

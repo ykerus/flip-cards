@@ -9,6 +9,10 @@ class Config:
     # If True, will multiply the species list by a large number (so not really infinite)
     INFINITE_PRACTICE = False
 
+    SELECTED_QUESTIONS = []
+    INCLUDED_TAGS = []
+    EXCLUDED_TAGS = []
+
     def dict(self):
         """Turns config into dict and lowers the keys"""
         return {
