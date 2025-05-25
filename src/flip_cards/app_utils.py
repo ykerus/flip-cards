@@ -487,17 +487,18 @@ def _get_feedback_emoji(correct_perc: float) -> str:
 
 def show_progress():
     infinite_practice = st.session_state["config"]["infinite_practice"]
+    answer_submitted = st.session_state["answer_submitted"]
+    queue = st.session_state["queue"]
+
     n_start = st.session_state["n_questions"] if not infinite_practice else 100000
-    n_left = (
-        len(
+
+    if infinite_practice:
+        n_left = len(queue) - 1 if answer_submitted else len(queue)
+    else:
+        n_left = len(
             set(st.session_state["question_indices"])
             - set(st.session_state["question_indices_seen"])
         )
-        if not st.session_state["config"]["infinite_practice"]
-        else len(st.session_state["queue"]) - 1
-        if st.session_state["answer_submitted"]
-        else len(st.session_state["queue"])
-    )
     n_done = n_start - n_left
     progress_perc = n_done / n_start
     progress_msg = f"**Voortgang**: {progress_perc:.0%} ({n_done}/{n_start})"
