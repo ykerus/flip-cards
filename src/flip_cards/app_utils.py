@@ -590,6 +590,7 @@ def show_tags():
 
 def present_question_information():
     # To be customized per use case
+    show_tags()
     st.write(st.session_state["question_object"]["info"])
 
 
