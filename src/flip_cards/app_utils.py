@@ -321,9 +321,7 @@ def config_form():
             + "vragen in eindselectie"
         )
 
-        start_overhoring_button = st.button("Start overhoring")
-
-        if start_overhoring_button:
+        def _on_click_start_overhoring():
             st.session_state["overhoring_started"] = True
             st.session_state["initialize_queue"] = True
 
@@ -333,7 +331,7 @@ def config_form():
                 st.session_state["config"]["random_selection"] = True
                 st.session_state["config"]["n_random_questions"] = 1
 
-            st.rerun()
+        st.button("Start overhoring", on_click=_on_click_start_overhoring)
 
 
 def _get_n_questions_selected(config: str = "config") -> int:
@@ -519,29 +517,30 @@ def present_question():
 def answer_form(
     text: str,
 ):
+    def _on_click_check():
+        st.session_state["given_answer"] = st.session_state["answer_field"]
+        if st.session_state["given_answer"]:
+            st.session_state["answer_submitted"] = True
+            if not st.session_state["answer_checked"]:
+                check_answer()
+                update_queue()
+
+    def _on_click_volgende():
+        st.session_state["answer_submitted"] = False
+        st.session_state["queue"].pop(0)
+        st.session_state["answer_checked"] = False
+        st.session_state["clear_answer_field"] = True
+
     with st.form("answer_form"):
         if st.session_state["config"]["answer_suggestions"]:
-            st.session_state["given_answer"] = st.selectbox(
-                text, options=[""] + st.session_state["suggestions"], key="answer_field"
-            )
+            st.selectbox(text, options=[""] + st.session_state["suggestions"], key="answer_field")
         else:
-            st.session_state["given_answer"] = st.text_input(text, key="answer_field")
-
-        check_answer_button = False
-        next_question_button = False
+            st.text_input(text, key="answer_field")
 
         if not st.session_state["answer_submitted"]:
-            check_answer_button = st.form_submit_button("Check")
+            st.form_submit_button("Check", on_click=_on_click_check)
         else:
-            next_question_button = st.form_submit_button("Volgende")
-
-        if check_answer_button and st.session_state["given_answer"]:
-            st.session_state["answer_submitted"] = True
-            st.rerun()
-
-        if next_question_button:
-            st.session_state["next_question"] = True
-            st.session_state["answer_submitted"] = False
+            st.form_submit_button("Volgende", on_click=_on_click_volgende)
 
 
 def check_answer():
