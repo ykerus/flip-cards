@@ -45,7 +45,7 @@ if st.session_state["answer_submitted"]:
     app_utils.present_question_information()
 
 # Keep at the end of the script
-if st.session_state["answer_submitted"]:
-    app_utils.focus_on_next_button_in_form()
-else:
+if st.session_state["focus_on_input"]:
     app_utils.focus_on_input_in_form()
+elif st.session_state["focus_on_next_button"]:
+    app_utils.focus_on_next_button_in_form()

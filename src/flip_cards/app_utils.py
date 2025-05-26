@@ -138,6 +138,20 @@ def initialize_session_state(
     st.session_state["initialized"] = True
 
 
+def _toggle_input_focus(state: str = "off"):
+    if state == "off":
+        st.session_state["focus_on_input"] = False
+        st.session_state["focus_on_next_button"] = False
+    elif state == "on" or state == "input_field":
+        st.session_state["focus_on_input"] = True
+        st.session_state["focus_on_next_button"] = False
+    elif state == "next_button":
+        st.session_state["focus_on_input"] = False
+        st.session_state["focus_on_next_button"] = True
+    else:
+        raise NotImplementedError
+
+
 def _set_config(config_key: str, widget_key: str):
     st.session_state["_config"][config_key] = st.session_state[widget_key]
 
@@ -167,7 +181,37 @@ def _sync_configs_and_defaults(key: str):
     _set_config(key, key + "_widget")
 
 
+def _checkbox_answer_suggestions():
+    def _on_change():
+        _set_config("answer_suggestions", "answer_suggestions_widget")
+        _toggle_input_focus("off")
+
+    st.checkbox(
+        "Antwoord suggesties",
+        value=st.session_state["_config_default"]["answer_suggestions"],
+        key="answer_suggestions_widget",
+        on_change=_on_change,
+    )
+
+
+def _checkbox_infinite_practice():
+    def _on_change():
+        _set_config("infinite_practice", "infinite_practice_widget")
+        _toggle_input_focus("off")
+
+    st.checkbox(
+        "Eindeloos oefenen",
+        value=st.session_state["_config_default"]["infinite_practice"],
+        key="infinite_practice_widget",
+        on_change=_on_change,
+    )
+
+
 def _multiselect_selected_questions():
+    def _on_change():
+        _sync_configs_and_defaults("selected_questions")
+        _toggle_input_focus("off")
+
     possible_indices = _get_possible_indices_from_selected_tags("_config")
     possible_questions = [st.session_state["correct_answers"][i] for i in possible_indices]
     st.multiselect(
@@ -175,11 +219,15 @@ def _multiselect_selected_questions():
         possible_questions,
         default=st.session_state["_config_default"]["selected_questions"],
         key="selected_questions_widget",
-        on_change=lambda: _sync_configs_and_defaults("selected_questions"),
+        on_change=_on_change,
     )
 
 
 def _multiselect_included_tags():
+    def _on_change():
+        _sync_configs_and_defaults("included_tags")
+        _toggle_input_focus("off")
+
     possible_indices = _get_possible_indices_from_excluded_tags("_config")
     possible_question_objects = [st.session_state["question_objects"][i] for i in possible_indices]
     possible_tags = {tag for tags in [q["tags"] for q in possible_question_objects] for tag in tags}
@@ -188,11 +236,15 @@ def _multiselect_included_tags():
         list(possible_tags),
         default=st.session_state["_config_default"]["included_tags"],
         key="included_tags_widget",
-        on_change=lambda: _sync_configs_and_defaults("included_tags"),
+        on_change=_on_change,
     )
 
 
 def _multiselect_excluded_tags():
+    def _on_change():
+        _sync_configs_and_defaults("excluded_tags")
+        _toggle_input_focus("off")
+
     if st.session_state["_config"]["selected_questions"]:
         return
 
@@ -207,11 +259,28 @@ def _multiselect_excluded_tags():
         possible_tags,
         default=st.session_state["_config_default"]["excluded_tags"],
         key="excluded_tags_widget",
-        on_change=lambda: _sync_configs_and_defaults("excluded_tags"),
+        on_change=_on_change,
+    )
+
+
+def _checkbox_random_selection():
+    def _on_change():
+        _set_config("random_selection", "random_selection_widget")
+        _toggle_input_focus("off")
+
+    st.checkbox(
+        "Willekeurige selectie",
+        value=st.session_state["_config_default"]["random_selection"],
+        key="random_selection_widget",
+        on_change=_on_change,
     )
 
 
 def _select_slider_n_random_questions():
+    def _on_change():
+        _set_config("n_random_questions", "n_random_questions_widget")
+        _toggle_input_focus("off")
+
     possible_question_indices = _get_possible_question_indices("_config")
     st.select_slider(
         "Aantal vragen",
@@ -221,8 +290,10 @@ def _select_slider_n_random_questions():
             len(possible_question_indices),
             st.session_state["_config_default"]["n_random_questions"],
         ),
-        on_change=lambda: _set_config("n_random_questions", "n_random_questions_widget"),
+        on_change=_on_change,
     )
+    # This is done extra for the case that someone changes the filters. In that
+    # case the values of the slider change, but it does not trigger a "change"
     _set_config("n_random_questions", "n_random_questions_widget")
 
 
@@ -232,6 +303,10 @@ def _select_slider_from_to_questions():
         end_index = st.session_state["questions_from_to_widget"][1] + 1
         st.session_state["_config"]["question_start_index"] = start_index
         st.session_state["_config"]["question_end_index"] = end_index
+
+    def _on_change():
+        _set_config_from_to()
+        _toggle_input_focus("off")
 
     possible_question_indices = _get_possible_question_indices("_config")
 
@@ -253,9 +328,11 @@ def _select_slider_from_to_questions():
             ),
         ),
         format_func=lambda x: _format_func(x),
-        on_change=_set_config_from_to,
+        on_change=_on_change,
         key="questions_from_to_widget",
     )
+    # This is done extra for the case that someone changes the filters. In that
+    # case the values of the slider change, but it does not trigger a "change"
     _set_config_from_to()
 
 
@@ -267,18 +344,8 @@ def config_form():
 
         st.write("**Algemene instellingen**")
 
-        st.checkbox(
-            "Antwoord suggesties",
-            value=st.session_state["_config_default"]["answer_suggestions"],
-            key="answer_suggestions_widget",
-            on_change=lambda: _set_config("answer_suggestions", "answer_suggestions_widget"),
-        )
-        st.checkbox(
-            "Eindeloos oefenen",
-            value=st.session_state["_config_default"]["infinite_practice"],
-            key="infinite_practice_widget",
-            on_change=lambda: _set_config("infinite_practice", "infinite_practice_widget"),
-        )
+        _checkbox_answer_suggestions()
+        _checkbox_infinite_practice()
 
         _multiselect_selected_questions()
 
@@ -302,12 +369,7 @@ def config_form():
                 + "vragen in voorselectie"
             )
 
-            st.checkbox(
-                "Willekeurige selectie",
-                value=st.session_state["_config_default"]["random_selection"],
-                key="random_selection_widget",
-                on_change=lambda: _set_config("random_selection", "random_selection_widget"),
-            )
+            _checkbox_random_selection()
 
             if st.session_state["_config"]["random_selection"]:
                 _select_slider_n_random_questions()
@@ -324,8 +386,8 @@ def config_form():
         def _on_click_start_overhoring():
             st.session_state["overhoring_started"] = True
             st.session_state["initialize_queue"] = True
-
             st.session_state["config"] = st.session_state["_config"].copy()
+            _toggle_input_focus("on")
 
             if n_questions_selected == 1:
                 st.session_state["config"]["random_selection"] = True
@@ -524,6 +586,7 @@ def answer_form(
         st.session_state["given_answer"] = st.session_state["answer_field"]
         if st.session_state["given_answer"]:
             st.session_state["answer_submitted"] = True
+            _toggle_input_focus("next_button")
             if not st.session_state["answer_checked"]:
                 check_answer()
                 update_queue()
@@ -533,6 +596,7 @@ def answer_form(
         st.session_state["queue"].pop(0)
         st.session_state["answer_checked"] = False
         st.session_state["clear_answer_field"] = True
+        _toggle_input_focus("input_field")
 
     with st.form("answer_form"):
         if st.session_state["config"]["answer_suggestions"]:
@@ -623,24 +687,34 @@ def clear_answer_field():
 
 def focus_on_input_in_form():
     st.session_state["counter"] += 1
-    components.html(
-        f"""
-            <div>some hidden container</div>
-            <p>{st.session_state.counter}</p>
-            <script>
-                // Focus on Streamlit selectbox elements
-                var selectBoxes = window.parent.document.querySelectorAll('[role="combobox"]');
-                if (selectBoxes.length > 1) {{
-                    selectBoxes[1].focus();
-                }}
-
-                // Focus on text input elements
-                var textInputs = window.parent.document.querySelectorAll("input[type=text]");
-                textInputs[0].focus();
-        </script>
-        """,
-        height=0,
-    )
+    if st.session_state["config"]["answer_suggestions"]:
+        components.html(
+            f"""
+                <div>some hidden container</div>
+                <p>{st.session_state.counter}</p>
+                <script>
+                    // Focus on Streamlit selectbox elements
+                    var selectBoxes = window.parent.document.querySelectorAll('[role="combobox"]');
+                    if (selectBoxes.length > 0) {{
+                        selectBoxes[3].focus();
+                    }}
+            </script>
+            """,
+            height=0,
+        )
+    else:
+        components.html(
+            f"""
+                <div>some hidden container</div>
+                <p>{st.session_state.counter}</p>
+                <script>
+                    // Focus on text input elements
+                    var textInputs = window.parent.document.querySelectorAll("input[type=text]");
+                    textInputs[0].focus();
+            </script>
+            """,
+            height=0,
+        )
 
 
 def focus_on_next_button_in_form():
