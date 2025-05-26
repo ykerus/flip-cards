@@ -713,15 +713,27 @@ def focus_on_input_in_form():
                 <div id="selectbox-count"></div>
                 <p>{st.session_state.counter}</p>
                 <script>
+                    let retries = 0;
+                    const maxRetries = 50;
                     function focusSelectBoxInput() {{
                         var selectBoxes = window.parent.document.querySelectorAll('[role="combobox"]');
-                        // document.getElementById("selectbox-count").innerText = "Number of selectBoxes: " + selectBoxes.length;
                         if (selectBoxes.length > {st.session_state["n_config_comboboxes"]}) {{
                             selectBoxes[{st.session_state["n_config_comboboxes"]}].focus();
-                        }} else {{
+                        }} else if (retries < maxRetries) {{
+                            retries += 1;
                             setTimeout(focusSelectBoxInput, 100);
                         }}
                     }}
+                    // Optionally, use MutationObserver for more robustness:
+                    const observer = new window.parent.MutationObserver((mutations, obs) => {{
+                        var selectBoxes = window.parent.document.querySelectorAll('[role="combobox"]');
+                        if (selectBoxes.length > {st.session_state["n_config_comboboxes"]}) {{
+                            selectBoxes[{st.session_state["n_config_comboboxes"]}].focus();
+                            obs.disconnect();
+                        }}
+                    }});
+                    observer.observe(window.parent.document.body, {{ childList: true, subtree: true }});
+                    // Fallback in case observer doesn't fire:
                     focusSelectBoxInput();
                 </script>
             """,
@@ -733,15 +745,27 @@ def focus_on_input_in_form():
                 <div id="text-input-count"></div>
                 <p>{st.session_state.counter}</p>
                 <script>
+                    let retries = 0;
+                    const maxRetries = 50;
                     function focusTextInput() {{
                         var textInputs = window.parent.document.querySelectorAll("input[type=text]");
-                        // document.getElementById("text-input-count").innerText = "Number of textInputs: " + textInputs.length;
                         if (textInputs.length > 0) {{
                             textInputs[0].focus();
-                        }} else {{
+                        }} else if (retries < maxRetries) {{
+                            retries += 1;
                             setTimeout(focusTextInput, 100);
                         }}
                     }}
+                    // Use MutationObserver for robustness:
+                    const observer = new window.parent.MutationObserver((mutations, obs) => {{
+                        var textInputs = window.parent.document.querySelectorAll("input[type=text]");
+                        if (textInputs.length > 0) {{
+                            textInputs[0].focus();
+                            obs.disconnect();
+                        }}
+                    }});
+                    observer.observe(window.parent.document.body, {{ childList: true, subtree: true }});
+                    // Fallback in case observer doesn't fire:
                     focusTextInput();
                 </script>
             """,
@@ -753,13 +777,25 @@ def focus_on_next_button_in_form():
     components.html(
         """
         <script>
-            // Focus on the "Volgende" button
-            var buttons = window.parent.document.querySelectorAll('button');
-            for (var i = 0; i < buttons.length; ++i) {
-                if (buttons[i].innerText === "Volgende") {
-                    buttons[i].focus();
-                    break;
+            function focusNextButton() {
+                var buttons = window.parent.document.querySelectorAll('button');
+                for (var i = 0; i < buttons.length; ++i) {
+                    if (buttons[i].innerText === "Volgende") {
+                        buttons[i].focus();
+                        return true;
+                    }
                 }
+                return false;
+            }
+            // Try immediately
+            if (!focusNextButton()) {
+                // Use MutationObserver for robustness
+                const observer = new window.parent.MutationObserver((mutations, obs) => {
+                    if (focusNextButton()) {
+                        obs.disconnect();
+                    }
+                });
+                observer.observe(window.parent.document.body, { childList: true, subtree: true });
             }
         </script>
         """,
