@@ -5,7 +5,11 @@ from flip_cards import app_utils
 
 dotenv.load_dotenv()
 
-st.set_page_config(page_title="Vogeltjes", page_icon="🦉", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Vogeltjes",
+    page_icon="🦉",
+    initial_sidebar_state=st.session_state.get("sidebar_state", "expanded"),
+)
 
 app_utils.you_shall_not_password()
 

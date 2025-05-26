@@ -135,6 +135,7 @@ def initialize_session_state(
     st.session_state["_config_default"] = Config().dict()  # Before starting overhoring
     st.session_state["_config"] = Config().dict()  # Before starting overhoring
     st.session_state["config"] = Config().dict()  # Actual config used in overhoring
+    st.session_state["sidebar_state"] = "expanded"
     st.session_state["initialized"] = True
 
 
@@ -185,6 +186,7 @@ def _checkbox_answer_suggestions():
     def _on_change():
         _set_config("answer_suggestions", "answer_suggestions_widget")
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     st.checkbox(
         "Antwoord suggesties",
@@ -198,6 +200,7 @@ def _checkbox_infinite_practice():
     def _on_change():
         _set_config("infinite_practice", "infinite_practice_widget")
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     st.checkbox(
         "Eindeloos oefenen",
@@ -211,6 +214,7 @@ def _multiselect_selected_questions():
     def _on_change():
         _sync_configs_and_defaults("selected_questions")
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     st.session_state["n_config_comboboxes"] += 1
 
@@ -229,6 +233,7 @@ def _multiselect_included_tags():
     def _on_change():
         _sync_configs_and_defaults("included_tags")
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     st.session_state["n_config_comboboxes"] += 1
 
@@ -248,6 +253,7 @@ def _multiselect_excluded_tags():
     def _on_change():
         _sync_configs_and_defaults("excluded_tags")
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     st.session_state["n_config_comboboxes"] += 1
 
@@ -273,6 +279,7 @@ def _checkbox_random_selection():
     def _on_change():
         _set_config("random_selection", "random_selection_widget")
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     st.checkbox(
         "Willekeurige selectie",
@@ -286,6 +293,7 @@ def _select_slider_n_random_questions():
     def _on_change():
         _set_config("n_random_questions", "n_random_questions_widget")
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     possible_question_indices = _get_possible_question_indices("_config")
     st.select_slider(
@@ -313,6 +321,7 @@ def _select_slider_from_to_questions():
     def _on_change():
         _set_config_from_to()
         _toggle_input_focus("off")
+        st.session_state["sidebar_state"] = "expanded"
 
     possible_question_indices = _get_possible_question_indices("_config")
 
@@ -396,6 +405,7 @@ def config_form():
             st.session_state["initialize_queue"] = True
             st.session_state["config"] = st.session_state["_config"].copy()
             _toggle_input_focus("on")
+            st.session_state["sidebar_state"] = "collapsed"
 
             if n_questions_selected == 1:
                 st.session_state["config"]["random_selection"] = True
@@ -594,6 +604,7 @@ def answer_form(
         st.session_state["given_answer"] = st.session_state["answer_field"]
         if st.session_state["given_answer"]:
             st.session_state["answer_submitted"] = True
+            st.session_state["sidebar_state"] = "collapsed"
             _toggle_input_focus("next_button")
             if not st.session_state["answer_checked"]:
                 check_answer()
@@ -604,6 +615,7 @@ def answer_form(
         st.session_state["queue"].pop(0)
         st.session_state["answer_checked"] = False
         st.session_state["clear_answer_field"] = True
+        st.session_state["sidebar_state"] = "collapsed"
         _toggle_input_focus("input_field")
 
     with st.form("answer_form"):
