@@ -212,6 +212,8 @@ def _multiselect_selected_questions():
         _sync_configs_and_defaults("selected_questions")
         _toggle_input_focus("off")
 
+    st.session_state["n_config_comboboxes"] += 1
+
     possible_indices = _get_possible_indices_from_selected_tags("_config")
     possible_questions = [st.session_state["correct_answers"][i] for i in possible_indices]
     st.multiselect(
@@ -227,6 +229,8 @@ def _multiselect_included_tags():
     def _on_change():
         _sync_configs_and_defaults("included_tags")
         _toggle_input_focus("off")
+
+    st.session_state["n_config_comboboxes"] += 1
 
     possible_indices = _get_possible_indices_from_excluded_tags("_config")
     possible_question_objects = [st.session_state["question_objects"][i] for i in possible_indices]
@@ -244,6 +248,8 @@ def _multiselect_excluded_tags():
     def _on_change():
         _sync_configs_and_defaults("excluded_tags")
         _toggle_input_focus("off")
+
+    st.session_state["n_config_comboboxes"] += 1
 
     if st.session_state["_config"]["selected_questions"]:
         return
@@ -338,6 +344,8 @@ def _select_slider_from_to_questions():
 
 def config_form():
     # To be customized per use case
+
+    st.session_state["n_config_comboboxes"] = 0
 
     with st.sidebar.container(border=True):
         st.subheader("**Configuratie**")
@@ -690,28 +698,40 @@ def focus_on_input_in_form():
     if st.session_state["config"]["answer_suggestions"]:
         components.html(
             f"""
-                <div>some hidden container</div>
+                <div id="selectbox-count"></div>
                 <p>{st.session_state.counter}</p>
                 <script>
-                    // Focus on Streamlit selectbox elements
-                    var selectBoxes = window.parent.document.querySelectorAll('[role="combobox"]');
-                    if (selectBoxes.length > 0) {{
-                        selectBoxes[3].focus();
+                    function focusSelectBoxInput() {{
+                        var selectBoxes = window.parent.document.querySelectorAll('[role="combobox"]');
+                        // document.getElementById("selectbox-count").innerText = "Number of selectBoxes: " + selectBoxes.length;
+                        if (selectBoxes.length > {st.session_state["n_config_comboboxes"]}) {{
+                            selectBoxes[{st.session_state["n_config_comboboxes"]}].focus();
+                        }} else {{
+                            setTimeout(focusSelectBoxInput, 100);
+                        }}
                     }}
-            </script>
+                    focusSelectBoxInput();
+                </script>
             """,
             height=0,
         )
     else:
         components.html(
             f"""
-                <div>some hidden container</div>
+                <div id="text-input-count"></div>
                 <p>{st.session_state.counter}</p>
                 <script>
-                    // Focus on text input elements
-                    var textInputs = window.parent.document.querySelectorAll("input[type=text]");
-                    textInputs[0].focus();
-            </script>
+                    function focusTextInput() {{
+                        var textInputs = window.parent.document.querySelectorAll("input[type=text]");
+                        // document.getElementById("text-input-count").innerText = "Number of textInputs: " + textInputs.length;
+                        if (textInputs.length > 0) {{
+                            textInputs[0].focus();
+                        }} else {{
+                            setTimeout(focusTextInput, 100);
+                        }}
+                    }}
+                    focusTextInput();
+                </script>
             """,
             height=0,
         )
