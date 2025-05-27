@@ -45,7 +45,7 @@ app_utils.present_question()
 app_utils.answer_form("Antwoord:")
 
 if st.session_state["answer_submitted"]:
-    app_utils.show_feedback_message()
+    # app_utils.show_feedback_message()
     app_utils.present_question_information()
 
 # Keep at the end of the script

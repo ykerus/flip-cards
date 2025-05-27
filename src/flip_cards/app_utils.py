@@ -597,6 +597,10 @@ def present_question():
     st.write(st.session_state["question_object"]["question"])
 
 
+def _titlelize(text: str) -> str:
+    return " ".join([e.capitalize() for e in text.split()])
+
+
 def answer_form(
     text: str,
 ):
@@ -619,14 +623,23 @@ def answer_form(
         _toggle_input_focus("input_field")
 
     with st.form("answer_form"):
-        if st.session_state["config"]["answer_suggestions"]:
-            st.selectbox(text, options=[""] + st.session_state["suggestions"], key="answer_field")
-        else:
-            st.text_input(text, key="answer_field")
-
         if not st.session_state["answer_submitted"]:
+            if st.session_state["config"]["answer_suggestions"]:
+                st.selectbox(
+                    text, options=[""] + st.session_state["suggestions"], key="answer_field"
+                )
+            else:
+                st.text_input(text, key="answer_field")
+
             st.form_submit_button("Check", on_click=_on_click_check)
         else:
+            feedback_emoji = "✅" if st.session_state["answer_correct"] else "❌"
+            st.text_input(
+                text,
+                value=f"{feedback_emoji} {_titlelize(st.session_state['given_answer'])}",
+                key="answer_field",
+                disabled=True,
+            )
             st.form_submit_button("Volgende", on_click=_on_click_volgende)
 
 
